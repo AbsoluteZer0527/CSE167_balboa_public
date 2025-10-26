@@ -19,7 +19,8 @@
         },
         {
             "type": "circle",
-            "center": [150, 280],
+            "center": [150, 280
+        ],
             "radius": 80,
             "fill_color": [0.95, 0.1, 0.3]
         },

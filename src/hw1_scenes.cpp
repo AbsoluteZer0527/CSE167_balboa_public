@@ -4,6 +4,10 @@
 #include "matrix.h"
 #include <fstream>
 
+#ifndef PI
+#define PI 3.14159265358979323846
+#endif
+
 using json = nlohmann::json;
 
 namespace hw1 {
@@ -24,24 +28,48 @@ Matrix3x3 parse_transformation(const json &node) {
                 (*scale_it)[0], (*scale_it)[1]
             };
             // TODO (HW1.4): construct a scale matrix and composite with F
+            Matrix3x3 S = Matrix3x3::identity();
+            S(0, 0) = scale.x;
+            S(1, 1) = scale.y;
+            F = S * F;
             UNUSED(scale); // silence warning, feel free to remove it
         } else if (auto rotate_it = it->find("rotate"); rotate_it != it->end()) {
             Real angle = *rotate_it;
             // TODO (HW1.4): construct a rotation matrix and composite with F
+            Real radians = angle * PI / 180.0;
+            Real cos_theta = cos(radians);
+            Real sin_theta = sin(radians);
+            
+            Matrix3x3 R = Matrix3x3::identity();
+            R(0, 0) = cos_theta;
+            R(0, 1) = -sin_theta;
+            R(1, 0) = sin_theta;
+            R(1, 1) = cos_theta;
+            F = R * F;
             UNUSED(angle); // silence warning, feel free to remove it
         } else if (auto translate_it = it->find("translate"); translate_it != it->end()) {
             Vector2 translate = Vector2{
                 (*translate_it)[0], (*translate_it)[1]
             };
             // TODO (HW1.4): construct a translation matrix and composite with F
+            Matrix3x3 T = Matrix3x3::identity();
+            T(0, 2) = translate.x;
+            T(1, 2) = translate.y;
+            F = T * F;
             UNUSED(translate); // silence warning, feel free to remove it
         } else if (auto shearx_it = it->find("shear_x"); shearx_it != it->end()) {
             Real shear_x = *shearx_it;
             // TODO (HW1.4): construct a shear matrix (x direction) and composite with F
+            Matrix3x3 Sx = Matrix3x3::identity();
+            Sx(0, 1) = shear_x;
+            F = Sx * F;
             UNUSED(shear_x); // silence warning, feel free to remove it
         } else if (auto sheary_it = it->find("shear_y"); sheary_it != it->end()) {
             Real shear_y = *sheary_it;
             // TODO (HW1.4): construct a shear matrix (y direction) and composite with F
+            Matrix3x3 Sy = Matrix3x3::identity();
+            Sy(1, 0) = shear_y;
+            F = Sy * F;
             UNUSED(shear_y); // silence warning, feel free to remove it
         }
     }
@@ -132,6 +160,26 @@ Scene parse_scene(const fs::path &filename) {
                     polyline.points.push_back(Vector2{x, y});
                 }
             }
+
+            auto curves_it = it->find("curves");
+            if (curves_it != it->end()) {
+                // Initialize segments to the correct size (number of segments = points - 1)
+                if (polyline.points.size() > 1) {
+                    polyline.segments.resize(polyline.points.size() - 1);
+                    
+                    // Parse each curve definition
+                    for (auto& curve : *curves_it) {
+                        int segment_index = curve["segment"];
+                        
+                        // Bounds check before accessing
+                        if (segment_index >= 0 && segment_index < (int)polyline.segments.size()) {
+                            Vector2 control = Vector2{curve["control"][0], curve["control"][1]};
+                            polyline.segments[segment_index] = BezierSegment{control};
+                        }
+                    }
+                }
+            }
+                    
             auto is_closed_it = it->find("is_closed");
             if (is_closed_it != it->end()) {
                 polyline.is_closed = *is_closed_it;

@@ -1,0 +1,25 @@
+{
+    "resolution": [400, 400],
+    "background": [1.0, 0.95, 0.95],
+    "objects": [
+        {
+            "type": "polyline",
+            "points": [
+                200, 100,
+                100, 200,
+                200, 230,
+                300, 200,
+                200, 100
+            ],
+            "curves": [
+                {"segment": 0, "control": [100, 150]},
+                {"segment": 1, "control": [110, 300]},
+                {"segment": 2, "control": [290, 300]},
+                {"segment": 3, "control": [300, 150]}
+            ],
+            "is_closed": true,
+            "stroke_color": [0.7, 0.0, 0.1],
+            "stroke_width": 3
+        }
+    ]
+}

@@ -9,6 +9,10 @@
 
 namespace hw1 {
 
+struct BezierSegment {
+    Vector2 control;
+};
+
 struct Circle {
     Vector2 center;
     Real radius;
@@ -22,6 +26,7 @@ struct Circle {
 
 struct Polyline {
     std::vector<Vector2> points;
+    std::vector<std::optional<BezierSegment>> segments;
     bool is_closed;
     std::optional<Vector3> fill_color;
     Real fill_alpha;
