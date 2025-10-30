@@ -242,21 +242,69 @@ Matrix4x4 parse_transformation(const json &node) {
                 (*scale_it)[0], (*scale_it)[1], (*scale_it)[2]
             };
             // TODO (HW2.4): construct a scale matrix and composite with F
-            UNUSED(scale); // silence warning, feel free to remove it
+            Matrix4x4 S = Matrix4x4::identity();
+            S(0, 0) = scale.x;
+            S(1, 1) = scale.y;
+            S(2, 2) = scale.z;
+            
+            // Composite with F (multiply on the left)
+            F = S * F;
         } else if (auto rotate_it = it->find("rotate"); rotate_it != it->end()) {
             Real angle = (*rotate_it)[0];
             Vector3 axis = normalize(Vector3{
                 (*rotate_it)[1], (*rotate_it)[2], (*rotate_it)[3]
             });
-            // TODO (HW2.4): construct a rotation matrix and composite with F
-            UNUSED(angle); // silence warning, feel free to remove it
-            UNUSED(axis); // silence warning, feel free to remove it
+
+            Real theta = angle * c_PI / 180.0;
+            Real cos_theta = cos(theta);
+            Real sin_theta = sin(theta);
+            
+            Real ax = axis.x;
+            Real ay = axis.y;
+            Real az = axis.z;
+            
+            // Construct rotation matrix using Rodrigues formula
+            Matrix4x4 R = Matrix4x4::identity();
+            
+            // Column 0
+            R(0, 0) = ax * ax + (1 - ax * ax) * cos_theta;
+            R(1, 0) = ax * ay * (1 - cos_theta) + az * sin_theta;
+            R(2, 0) = ax * az * (1 - cos_theta) - ay * sin_theta;
+            R(3, 0) = 0;
+            
+            // Column 1
+            R(0, 1) = ay * ax * (1 - cos_theta) - az * sin_theta;
+            R(1, 1) = ay * ay + (1 - ay * ay) * cos_theta;
+            R(2, 1) = ay * az * (1 - cos_theta) + ax * sin_theta;
+            R(3, 1) = 0;
+            
+            // Column 2
+            R(0, 2) = az * ax * (1 - cos_theta) + ay * sin_theta;
+            R(1, 2) = az * ay * (1 - cos_theta) - ax * sin_theta;
+            R(2, 2) = az * az + (1 - az * az) * cos_theta;
+            R(3, 2) = 0;
+            
+            // Column 3
+            R(0, 3) = 0;
+            R(1, 3) = 0;
+            R(2, 3) = 0;
+            R(3, 3) = 1;
+            
+            // Composite with F
+            F = R * F;
+            
         } else if (auto translate_it = it->find("translate"); translate_it != it->end()) {
             Vector3 translate = Vector3{
                 (*translate_it)[0], (*translate_it)[1], (*translate_it)[2]
             };
-            // TODO (HW2.4): construct a translation matrix and composite with F
-            UNUSED(translate); // silence warning, feel free to remove it
+
+            Matrix4x4 T = Matrix4x4::identity();
+            T(0, 3) = translate.x;
+            T(1, 3) = translate.y;
+            T(2, 3) = translate.z;
+            
+            // Composite with F
+            F = T * F;
         } else if (auto lookat_it = it->find("lookat"); lookat_it != it->end()) {
             Vector3 position{0, 0, 0};
             Vector3 target{0, 0, -1};
@@ -280,6 +328,53 @@ Matrix4x4 parse_transformation(const json &node) {
                 });
             }
             // TODO (HW2.4): construct a lookat matrix and composite with F
+            // Direction the camera is facing (forward)
+            Vector3 d = normalize(target - position);
+            
+            // Right vector (cross product of forward and up)
+            Vector3 r = normalize(cross(d, up));
+            
+            // Recompute up to ensure orthonormal basis
+            Vector3 u = cross(r, d);
+            
+            // Construct the LookAt matrix (camera to world)
+            Matrix4x4 L = Matrix4x4::identity();
+            
+            // Column 0: right vector
+            L(0, 0) = r.x;
+            L(1, 0) = r.y;
+            L(2, 0) = r.z;
+            L(3, 0) = 0;
+            
+            // Column 1: up vector
+            L(0, 1) = u.x;
+            L(1, 1) = u.y;
+            L(2, 1) = u.z;
+            L(3, 1) = 0;
+            
+            // Column 2: direction vector
+            L(0, 2) = d.x;
+            L(1, 2) = d.y;
+            L(2, 2) = d.z;
+            L(3, 2) = 0;
+            
+            // Column 3: position vector
+            L(0, 3) = position.x;
+            L(1, 3) = position.y;
+            L(2, 3) = position.z;
+            L(3, 3) = 1;
+            
+            // Composite with F
+            F = L * F;
+
+            std::cout << "LookAt:" << std::endl;
+            std::cout << "  position: " << position << std::endl;
+            std::cout << "  target: " << target << std::endl;
+            std::cout << "  d (forward): " << d << std::endl;
+            std::cout << "  r (right): " << r << std::endl;
+            std::cout << "  u (up): " << u << std::endl;
+            
+
         }
     }
     return F;
