@@ -2,6 +2,12 @@
 UCSD CSE 167 codebase
 https://cseweb.ucsd.edu/~tzli/cse167/
 
+# HW Showcase: 
+![alt text](outputs/hw1/hw_1_7.png)
+![alt text](outputs/hw2/cows_extra2.png)
+<video controls src="outputs/hw3/hw_3_5.mp4" title="Title"></video>
+
+
 # Build
 All the dependencies are included. Use CMake to build.
 ```shell
