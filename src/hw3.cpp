@@ -444,16 +444,17 @@ void hw_3_3(const std::vector<std::string> &params) {
                                  scene.camera.cam_to_world(2, 3)};
     // Extract camera directions from cam_to_world matrix
     Vector3 cameraRight = Vector3{scene.camera.cam_to_world(0, 0),
-                                   scene.camera.cam_to_world(1, 0),
-                                   scene.camera.cam_to_world(2, 0)};
-    
+                               scene.camera.cam_to_world(1, 0),
+                               scene.camera.cam_to_world(2, 0)};
+
     Vector3 cameraUp = Vector3{scene.camera.cam_to_world(0, 1),
                                 scene.camera.cam_to_world(1, 1),
                                 scene.camera.cam_to_world(2, 1)};
-    
-    Vector3 cameraForward = Vector3{scene.camera.cam_to_world(0, 2),
-                                    scene.camera.cam_to_world(1, 2),
-                                    scene.camera.cam_to_world(2, 2)};
+
+    // Column 2 is -forward (because of d = -d), so negate it to get forward
+    Vector3 cameraForward = Vector3{-scene.camera.cam_to_world(0, 2),
+                                    -scene.camera.cam_to_world(1, 2),
+                                    -scene.camera.cam_to_world(2, 2)};
     
     float cameraSpeed = 0.05f;
     float lastFrame = 0.0f;
@@ -497,17 +498,17 @@ void hw_3_3(const std::vector<std::string> &params) {
         view(0, 1) = cameraRight.y;
         view(0, 2) = cameraRight.z;
         view(0, 3) = -dot(cameraRight, cameraPos);
-        
+
         view(1, 0) = cameraUp.x;
         view(1, 1) = cameraUp.y;
         view(1, 2) = cameraUp.z;
         view(1, 3) = -dot(cameraUp, cameraPos);
-        
+
         view(2, 0) = -cameraForward.x;
         view(2, 1) = -cameraForward.y;
         view(2, 2) = -cameraForward.z;
         view(2, 3) = dot(cameraForward, cameraPos);
-        
+
         view(3, 0) = 0;
         view(3, 1) = 0;
         view(3, 2) = 0;

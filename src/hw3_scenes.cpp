@@ -170,7 +170,8 @@ TriangleMesh parse_ply(const fs::path &filename) {
 }
 
 Matrix4x4 parse_transformation(const json &node) {
-    // Homework 3.3: take the code from Homework 2.4 and copy paste it here
+    // Homework 2.4: parse a sequence of linear transformation and 
+    // combine them into a 4x4 transformation matrix
     Matrix4x4 F = Matrix4x4::identity();
     auto transform_it = node.find("transform");
     if (transform_it == node.end()) {
@@ -183,22 +184,66 @@ Matrix4x4 parse_transformation(const json &node) {
             Vector3 scale = Vector3{
                 (*scale_it)[0], (*scale_it)[1], (*scale_it)[2]
             };
-            // TODO (HW3.3): construct a scale matrix and composite with F
-            UNUSED(scale); // silence warning, feel free to remove it
+            // TODO (HW2.4): construct a scale matrix and composite with F
+            Matrix4x4 S = Matrix4x4::identity();
+            S(0, 0) = scale.x;
+            S(1, 1) = scale.y;
+            S(2, 2) = scale.z;
+            
+            F = S * F;
         } else if (auto rotate_it = it->find("rotate"); rotate_it != it->end()) {
             Real angle = (*rotate_it)[0];
             Vector3 axis = normalize(Vector3{
                 (*rotate_it)[1], (*rotate_it)[2], (*rotate_it)[3]
             });
-            // TODO (HW3.3): construct a rotation matrix and composite with F
-            UNUSED(angle); // silence warning, feel free to remove it
-            UNUSED(axis); // silence warning, feel free to remove it
+
+            Real theta = angle * c_PI / 180.0;
+            Real cos_theta = cos(theta);
+            Real sin_theta = sin(theta);
+            
+            Real ax = axis.x;
+            Real ay = axis.y;
+            Real az = axis.z;
+            
+            Matrix4x4 R = Matrix4x4::identity();
+            
+            // Column 0
+            R(0, 0) = ax * ax + (1 - ax * ax) * cos_theta;
+            R(1, 0) = ax * ay * (1 - cos_theta) + az * sin_theta;
+            R(2, 0) = ax * az * (1 - cos_theta) - ay * sin_theta;
+            R(3, 0) = 0;
+            
+            // Column 1
+            R(0, 1) = ay * ax * (1 - cos_theta) - az * sin_theta;
+            R(1, 1) = ay * ay + (1 - ay * ay) * cos_theta;
+            R(2, 1) = ay * az * (1 - cos_theta) + ax * sin_theta;
+            R(3, 1) = 0;
+            
+            // Column 2
+            R(0, 2) = az * ax * (1 - cos_theta) + ay * sin_theta;
+            R(1, 2) = az * ay * (1 - cos_theta) - ax * sin_theta;
+            R(2, 2) = az * az + (1 - az * az) * cos_theta;
+            R(3, 2) = 0;
+            
+            // Column 3
+            R(0, 3) = 0;
+            R(1, 3) = 0;
+            R(2, 3) = 0;
+            R(3, 3) = 1;
+            
+            F = R * F;
+            
         } else if (auto translate_it = it->find("translate"); translate_it != it->end()) {
             Vector3 translate = Vector3{
                 (*translate_it)[0], (*translate_it)[1], (*translate_it)[2]
             };
-            // TODO (HW3.3): construct a translation matrix and composite with F
-            UNUSED(translate); // silence warning, feel free to remove it
+
+            Matrix4x4 T = Matrix4x4::identity();
+            T(0, 3) = translate.x;
+            T(1, 3) = translate.y;
+            T(2, 3) = translate.z;
+            
+            F = T * F;
         } else if (auto lookat_it = it->find("lookat"); lookat_it != it->end()) {
             Vector3 position{0, 0, 0};
             Vector3 target{0, 0, -1};
@@ -221,7 +266,39 @@ Matrix4x4 parse_transformation(const json &node) {
                     (*up_it)[0], (*up_it)[1], (*up_it)[2]
                 });
             }
-            // TODO (HW3.3): construct a lookat matrix and composite with F
+            // TODO (HW2.4): construct a lookat matrix and composite with F
+            Vector3 d = normalize(target - position);
+
+            Vector3 r = normalize(cross(d, up));
+
+            Vector3 u = cross(r, d);
+
+            d = -d;
+
+            Matrix4x4 L = Matrix4x4::identity();
+
+            L(0, 0) = r.x;
+            L(1, 0) = r.y;
+            L(2, 0) = r.z;
+            L(3, 0) = 0;
+
+            L(0, 1) = u.x;
+            L(1, 1) = u.y;
+            L(2, 1) = u.z;
+            L(3, 1) = 0;
+
+            L(0, 2) = d.x;
+            L(1, 2) = d.y;
+            L(2, 2) = d.z;
+            L(3, 2) = 0;
+
+            L(0, 3) = position.x;
+            L(1, 3) = position.y;
+            L(2, 3) = position.z;
+            L(3, 3) = 1;
+
+            F = L * F;
+
         }
     }
     return F;
