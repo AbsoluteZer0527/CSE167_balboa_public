@@ -1,0 +1,69 @@
+{
+    "camera": {
+        "resolution": [640, 480],
+        "transform": [
+            {
+                "lookat": {
+                    "position": [5, -5, 3],
+                    "target": [0, 0, 0],
+                    "up": [0, 0, 1]
+                }
+            }
+        ],
+        "s": 0.85,
+        "z_near": 0.1,
+        "z_far": 100.0
+    },
+    "background": [0.7, 0.9, 0.7],
+    "objects": [
+        {
+            "filename": "cow1.ply",
+            "transform": [
+                {"translate": [-3, -3, 0]},
+                {"scale": [0.01, 0.01, 0.01]}
+            ]
+        },
+        {
+            "filename": "cow1.ply",
+            "transform": [
+                {"translate": [-2, -2, 0]},
+                {"scale": [0.01, 0.01, 0.01]}
+            ]
+        },
+        {
+            "filename": "cow1.ply",
+            "transform": [
+                {"translate": [-1, -1, 0]},
+                {"scale": [0.01, 0.01, 0.01]}
+            ]
+        },
+        {
+            "filename": "cow1.ply",
+            "transform": [
+                {"translate": [0, 0, 0]},
+                {"scale": [0.01, 0.01, 0.01]}
+            ]
+        },
+        {
+            "filename": "cow1.ply",
+            "transform": [
+                {"translate": [1, 1, 0]},
+                {"scale": [0.01, 0.01, 0.01]}
+            ]
+        },
+        {
+            "filename": "cow1.ply",
+            "transform": [
+                {"translate": [2, 2, 0]},
+                {"scale": [0.01, 0.01, 0.01]}
+            ]
+        },
+        {
+            "filename": "cow1.ply",
+            "transform": [
+                {"translate": [3, 3, 0]},
+                {"scale": [0.01, 0.01, 0.01]}
+            ]
+        }
+    ]
+}
