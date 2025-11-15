@@ -212,6 +212,48 @@ void hw_3_2(const std::vector<std::string> &params) {
     glfwTerminate();
 }
 
+// Camera data structure for mouse callback
+struct CameraData {
+    bool* firstMouse;
+    float* lastX;
+    float* lastY;
+    float* yaw;
+    float* pitch;
+    float sensitivity;
+};
+
+// Bonus: Mouse callback function
+void mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
+    CameraData* data = static_cast<CameraData*>(glfwGetWindowUserPointer(window));
+    if (!data) return;
+    
+    float xpos = static_cast<float>(xposIn);
+    float ypos = static_cast<float>(yposIn);
+    
+    if (*data->firstMouse) {
+        *data->lastX = xpos;
+        *data->lastY = ypos;
+        *data->firstMouse = false;
+    }
+    
+    float xoffset = xpos - *data->lastX;
+    float yoffset = *data->lastY - ypos; // Reversed: y-coordinates go from bottom to top
+    *data->lastX = xpos;
+    *data->lastY = ypos;
+    
+    xoffset *= data->sensitivity;
+    yoffset *= data->sensitivity;
+    
+    *data->yaw += xoffset;
+    *data->pitch += yoffset;
+    
+    // Constrain pitch
+    if (*data->pitch > 89.0f)
+        *data->pitch = 89.0f;
+    if (*data->pitch < -89.0f)
+        *data->pitch = -89.0f;
+}
+
 Vector3 operator*(const Vector3& v, float scalar) {
     return Vector3{v.x * scalar, v.y * scalar, v.z * scalar};
 }
@@ -456,8 +498,25 @@ void hw_3_3(const std::vector<std::string> &params) {
                                     -scene.camera.cam_to_world(1, 2),
                                     -scene.camera.cam_to_world(2, 2)};
     
-    float cameraSpeed = 0.05f;
+    float cameraSpeed = 5.0;
     float lastFrame = 0.0f;
+
+    Matrix4x4 original_cam_to_world = scene.camera.cam_to_world;
+
+    // Mouse input state
+    bool firstMouse = true;
+    float lastX = width / 2.0f;
+    float lastY = height / 2.0f;
+    float yaw = 0.0f;
+    float pitch = 0.0f;
+    float sensitivity = 0.1f;
+
+    // Hide and capture cursor
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+    CameraData cameraData = {&firstMouse, &lastX, &lastY, &yaw, &pitch, sensitivity};
+    glfwSetWindowUserPointer(window, &cameraData);
+    glfwSetCursorPosCallback(window, mouse_callback);
 
     // Render loop
     while (!glfwWindowShouldClose(window)) {
@@ -480,9 +539,40 @@ void hw_3_3(const std::vector<std::string> &params) {
         if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
             cameraPos = cameraPos + cameraRight * velocity;
         
+            // Apply rotation based on yaw and pitch
+            // Create rotation matrix from yaw (around up) and pitch (around right)
+            float yaw_rad = yaw * c_PI / 180.0f;
+            float pitch_rad = pitch * c_PI / 180.0f;
+
+            // Yaw rotation (around world up - Z axis for most scenes)
+            Matrix4x4f yawRotation = Matrix4x4f::identity();
+            yawRotation(0, 0) = cos(yaw_rad);
+            yawRotation(0, 1) = -sin(yaw_rad);
+            yawRotation(1, 0) = sin(yaw_rad);
+            yawRotation(1, 1) = cos(yaw_rad);
+
+            // Pitch rotation (around local right axis)
+            Matrix4x4f pitchRotation = Matrix4x4f::identity();
+            pitchRotation(1, 1) = cos(pitch_rad);
+            pitchRotation(1, 2) = -sin(pitch_rad);
+            pitchRotation(2, 1) = sin(pitch_rad);
+            pitchRotation(2, 2) = cos(pitch_rad);
+
+            // Combine rotations: apply pitch first, then yaw
+            Matrix4x4f rotationMatrix = yawRotation * pitchRotation;
+
+            // Apply rotation to original camera matrix
+            Matrix4x4f rotated_cam = Matrix4x4f(original_cam_to_world) * rotationMatrix;
+
+            // Update camera directions from rotated matrix
+            cameraRight = Vector3{rotated_cam(0, 0), rotated_cam(1, 0), rotated_cam(2, 0)};
+            cameraUp = Vector3{rotated_cam(0, 1), rotated_cam(1, 1), rotated_cam(2, 1)};
+            cameraForward = Vector3{-rotated_cam(0, 2), -rotated_cam(1, 2), -rotated_cam(2, 2)};
+
         // Clear buffers (BOTH color and depth!)
         glClearColor(scene.background.x, scene.background.y, scene.background.z, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
         
         // Use shader program
         glUseProgram(shaderProgram);
@@ -611,7 +701,6 @@ void hw_3_4(const std::vector<std::string> &params) {
     }
     glfwMakeContextCurrent(window);
 
-    // Initialize GLAD
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         std::cout << "Failed to initialize GLAD" << std::endl;
         return;
@@ -650,8 +739,6 @@ void hw_3_4(const std::vector<std::string> &params) {
             gl_Position = projection * view * vec4(FragPos, 1.0);
             vertexColor = aColor;
             TexCoord = aTexCoord;
-            
-            // Transform normal (use transpose of inverse for non-uniform scaling)
             Normal = mat3(transpose(inverse(model))) * aNormal;
         }
     )";
@@ -672,7 +759,6 @@ void hw_3_4(const std::vector<std::string> &params) {
         uniform vec3 viewPos;
         
         void main() {
-            // Get object color (from texture or vertex color)
             vec3 objectColor;
             if (useTexture) {
                 objectColor = texture(texture1, TexCoord).rgb;
@@ -680,26 +766,21 @@ void hw_3_4(const std::vector<std::string> &params) {
                 objectColor = vertexColor;
             }
             
-            // Lighting parameters
             float ambientStrength = 0.1;
             float specularStrength = 0.5;
             
-            // Ambient
             vec3 ambient = ambientStrength * objectColor;
             
-            // Diffuse
             vec3 norm = normalize(Normal);
             vec3 lightDirection = normalize(lightDir);
             float diff = max(dot(norm, lightDirection), 0.0);
             vec3 diffuse = diff * objectColor;
             
-            // Specular
             vec3 viewDir = normalize(viewPos - FragPos);
             vec3 reflectDir = reflect(-lightDirection, norm);
             float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
             vec3 specular = specularStrength * spec * vec3(1.0, 1.0, 1.0);
             
-            // Combine
             vec3 result = ambient + diffuse + specular;
             FragColor = vec4(result, 1.0);
         }
@@ -742,7 +823,6 @@ void hw_3_4(const std::vector<std::string> &params) {
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
-    // Mesh buffers structure
     struct MeshBuffers {
         unsigned int VAO;
         unsigned int VBO_vertices;
@@ -766,19 +846,16 @@ void hw_3_4(const std::vector<std::string> &params) {
         
         for (const auto& face : mesh.faces) {
             for (int i = 0; i < 3; i++) {
-                // Vertex position
                 Vector3 pos = mesh.vertices[face[i]];
                 vertices.push_back(pos.x);
                 vertices.push_back(pos.y);
                 vertices.push_back(pos.z);
                 
-                // Vertex color
                 Vector3 color = mesh.vertex_colors[face[i]];
                 colors.push_back(color.x);
                 colors.push_back(color.y);
                 colors.push_back(color.z);
                 
-                // UV coordinates
                 if (!mesh.uvs.empty()) {
                     Vector2 uv = mesh.uvs[face[i]];
                     uvs.push_back(uv.x);
@@ -788,7 +865,6 @@ void hw_3_4(const std::vector<std::string> &params) {
                     uvs.push_back(0.0f);
                 }
                 
-                // Vertex normals
                 if (!mesh.vertex_normals.empty()) {
                     Vector3 normal = mesh.vertex_normals[face[i]];
                     normals.push_back(normal.x);
@@ -806,32 +882,27 @@ void hw_3_4(const std::vector<std::string> &params) {
         buffers.hasTexture = has_scene_texture;
         buffers.textureID = scene_texture;
 
-        // Create VAO
         glGenVertexArrays(1, &buffers.VAO);
         glBindVertexArray(buffers.VAO);
         
-        // Position VBO
         glGenBuffers(1, &buffers.VBO_vertices);
         glBindBuffer(GL_ARRAY_BUFFER, buffers.VBO_vertices);
         glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
         glEnableVertexAttribArray(0);
         
-        // Color VBO
         glGenBuffers(1, &buffers.VBO_colors);
         glBindBuffer(GL_ARRAY_BUFFER, buffers.VBO_colors);
         glBufferData(GL_ARRAY_BUFFER, colors.size() * sizeof(float), colors.data(), GL_STATIC_DRAW);
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
         glEnableVertexAttribArray(1);
         
-        // UV VBO
         glGenBuffers(1, &buffers.VBO_uvs);
         glBindBuffer(GL_ARRAY_BUFFER, buffers.VBO_uvs);
         glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(float), uvs.data(), GL_STATIC_DRAW);
         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
         glEnableVertexAttribArray(2);
         
-        // Normal VBO
         glGenBuffers(1, &buffers.VBO_normals);
         glBindBuffer(GL_ARRAY_BUFFER, buffers.VBO_normals);
         glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(float), normals.data(), GL_STATIC_DRAW);
@@ -843,14 +914,9 @@ void hw_3_4(const std::vector<std::string> &params) {
         meshBuffers.push_back(buffers);
     }
 
-    // Camera setup
     Vector3 cameraPos = Vector3{scene.camera.cam_to_world(0, 3), 
                                  scene.camera.cam_to_world(1, 3), 
                                  scene.camera.cam_to_world(2, 3)};
-    
-    if (cameraPos.x == 0 && cameraPos.y == 0 && cameraPos.z == 0) {
-        cameraPos.z = 3.0f;
-    }
     
     Vector3 cameraRight = Vector3{scene.camera.cam_to_world(0, 0),
                                    scene.camera.cam_to_world(1, 0),
@@ -860,14 +926,13 @@ void hw_3_4(const std::vector<std::string> &params) {
                                 scene.camera.cam_to_world(1, 1),
                                 scene.camera.cam_to_world(2, 1)};
     
-    Vector3 cameraForward = Vector3{scene.camera.cam_to_world(0, 2),
-                                     scene.camera.cam_to_world(1, 2),
-                                     scene.camera.cam_to_world(2, 2)};
+    Vector3 cameraForward = Vector3{-scene.camera.cam_to_world(0, 2),
+                                     -scene.camera.cam_to_world(1, 2),
+                                     -scene.camera.cam_to_world(2, 2)};
     
     float cameraSpeed = 5.0f;
     float lastFrame = 0.0f;
 
-    // Light direction (normalized)
     Vector3 lightDir = Vector3{1.0f, 1.0f, 1.0f};
     float len = sqrt(lightDir.x * lightDir.x + lightDir.y * lightDir.y + lightDir.z * lightDir.z);
     lightDir.x /= len;
@@ -899,7 +964,7 @@ void hw_3_4(const std::vector<std::string> &params) {
         
         glUseProgram(shaderProgram);
         
-        // View matrix
+        // View matrix (same as hw_3_3)
         Matrix4x4f view = Matrix4x4f::identity();
         view(0, 0) = cameraRight.x;
         view(0, 1) = cameraRight.y;
@@ -939,7 +1004,6 @@ void hw_3_4(const std::vector<std::string> &params) {
         glUniform3f(glGetUniformLocation(shaderProgram, "lightDir"), lightDir.x, lightDir.y, lightDir.z);
         glUniform3f(glGetUniformLocation(shaderProgram, "viewPos"), cameraPos.x, cameraPos.y, cameraPos.z);
         
-        // Render meshes
         for (size_t i = 0; i < scene.meshes.size(); i++) {
             Matrix4x4f model = scene.meshes[i].model_matrix;
             glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, &model(0, 0));
@@ -961,7 +1025,6 @@ void hw_3_4(const std::vector<std::string> &params) {
         glfwPollEvents();
     }
 
-    // Cleanup
     for (auto& buffers : meshBuffers) {
         glDeleteVertexArrays(1, &buffers.VAO);
         glDeleteBuffers(1, &buffers.VBO_vertices);
