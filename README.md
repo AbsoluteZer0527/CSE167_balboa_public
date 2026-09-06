@@ -8,6 +8,24 @@ https://cseweb.ucsd.edu/~tzli/cse167/
 <video controls src="outputs/hw3/hw_3_5.mp4" title="Title"></video>
 
 
+https://github.com/user-attachments/assets/7770f83b-e675-47f9-87ba-d896a2341722
+
+
+
+https://github.com/user-attachments/assets/350d0462-7e8d-466f-9ba2-b04cacf624d2
+<img width="1920" height="1080" alt="donuts" src="https://github.com/user-attachments/assets/fce025da-30f9-414e-85b8-7e9e9efea9a1" />
+
+
+<img width="800" height="450" alt="hw_1_3_five_shapes" src="https://github.com/user-attachments/assets/ce232f55-b5c0-4aab-9bc3-c477bbb99ff4" />
+<img width="600" height="650" alt="hw_1_6_alpha_2" src="https://github.com/user-attachments/assets/6fee3cd1-854a-4806-864c-5155f263e206" />
+<img width="320" height="240" alt="hw_2_4_teapot" src="https://github.com/user-attachments/assets/4aaa295f-a751-4b86-9d95-09c91eeb9185" />
+<img width="640" height="480" alt="hw_2_4_cube" src="https://github.com/user-attachments/assets/fa302b1f-c096-49f9-b863-c21ce8ec6c02" />
+
+
+
+
+
+
 # Build
 All the dependencies are included. Use CMake to build.
 ```shell
